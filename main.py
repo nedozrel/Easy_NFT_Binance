@@ -14,11 +14,25 @@ def main():
     if url.find('binance') != -1:
         driver = webdriver.Chrome()
         driver.get(url)
-        time.sleep(10)
+        try:
+            accept_terms_button = driver.find_element(value='button.css-1mtehst', by='css selector')
+            accept_terms_button.click()
+            time.sleep(0.2)
+        except Exception:
+            print('accept terms button is not found')
+            raise Exception
+
+        try:
+            mint_button = driver.find_element(value='button.css-18fem9b', by='css selector')
+            mint_button.click()
+        except Exception:
+            print('mint button is not found')
+            raise Exception
     else:
         print('Ссылка не является ссылкой на сайт Binance!')
+
+    input('Нажмите Enter для завершения работы программы')
 
 
 if __name__ == '__main__':
     main()
-    input('Нажмите Enter для завершения работы программы')
