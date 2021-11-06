@@ -1,6 +1,10 @@
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options as chrome_options
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 import time
 import json
 
@@ -23,7 +27,6 @@ def get_page(driver, url):
             print('Что то пошло не так :(')
     else:
         print('Ссылка не является ссылкой на сайт Binance!')
-    time.sleep(2)
 
 
 def save_cookies(driver):
@@ -36,18 +39,24 @@ def load_cookies(driver):
         cookies = json.load(cookies_file)
     for cookie in cookies:
         driver.add_cookie(cookie)
-    time.sleep(2)
+    time.sleep(0.1)
 
 
 def main():
-    print('Дождитесь загрузки браузера и залогиньтесь на бинанс...')
+    print('Дождитесь загрузки браузера...')
     url = 'https://www.binance.com/ru'
     driver = get_driver(options=get_options())
     get_page(driver, url)
     load_cookies(driver)
     driver.refresh()
-    input('Если вы уже залогинены нажмите Enter')
-    save_cookies(driver)
+    wait = WebDriverWait(driver=driver, timeout=3).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'svg.css-mykl4n')))
+    try:
+        driver.find_element(By.CSS_SELECTOR, 'header_register')
+        get_page(driver, 'https://accounts.binance.com/ru/login')
+        input('Войдите в аккаунт, а затем нажмите Enter')
+        save_cookies(driver)
+    except NoSuchElementException:
+        pass
     input('Нажмите Enter для завершения работы программы')
 
 
