@@ -7,13 +7,19 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
 import json
-# import os
+from json.decoder import JSONDecodeError
 
 
 def get_options():
     options = chrome_options()
-    # path = os.path.abspath("selenium")
-    # options.add_argument("user-data-dir=" + path)
+    try:
+        with open('proxy.txt', 'r') as file:
+            proxy = file.read()
+        if proxy:
+            options.add_argument(f'--proxy-server={proxy}')
+    except FileNotFoundError as e:
+        pass
+    options.page_load_strategy = 'eager'
     return options
 
 
@@ -38,50 +44,74 @@ def save_cookies(driver):
 
 
 def load_cookies(driver):
-    with open('cookies.json', 'r') as cookies_file:
-        cookies = json.load(cookies_file)
+    try:
+        with open('cookies.json', 'r') as cookies_file:
+            cookies = json.load(cookies_file)
+    except ValueError:
+        with open('cookies.json', 'w') as cookies_file:
+            cookies_file.write('{}')
+        with open('cookies.json', 'r') as cookies_file:
+            cookies = json.load(cookies_file)
     for cookie in cookies:
         driver.add_cookie(cookie)
 
 
 def check_auth(driver, timeout=5):
     try:
-        wait = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=0.1) \
-            .until(EC.any_of(EC.presence_of_element_located((By.ID, 'account-f')),
-                             EC.presence_of_element_located((By.CSS_SELECTOR, 'svg.css-6px2js'))))
+        return WebDriverWait(driver=driver, timeout=timeout, poll_frequency=0.1) \
+            .until(EC.any_of(EC.visibility_of_element_located((By.CSS_SELECTOR, '#__APP > div > header > div:nth-child(4) > div > svg > use')),
+                             EC.visibility_of_element_located((By.CSS_SELECTOR, 'svg.css-6px2js'))))
     except TimeoutException:
         return False
-    return True
 
 
 def do_auth(driver):
-    get_page(driver, 'https://accounts.binance.com/ru/login')
     print('Ожидание авторизации...')
-    wait = WebDriverWait(driver=driver, timeout=600, poll_frequency=1) \
-        .until(EC.any_of(EC.presence_of_element_located((By.ID, 'account-f')),
-                         EC.presence_of_element_located((By.CSS_SELECTOR, 'svg.css-6px2js'))))
+    get_page(driver, 'https://accounts.binance.com/ru/login')
+    WebDriverWait(driver=driver, timeout=600, poll_frequency=1) \
+        .until(EC.any_of(EC.visibility_of_element_located((By.CSS_SELECTOR, '#__APP > div > header > div:nth-child(4) > div > svg > use')),
+                         EC.visibility_of_element_located((By.CSS_SELECTOR, 'svg.css-6px2js'))))
     save_cookies(driver)
+
+
+def click_btn(css_selector: str, driver, timeout=5, poll_frequency=0.00000000000000000000000000000001):
+    try:
+        btn = driver.find_element(By.CSS_SELECTOR, css_selector)
+        btn.click()
+    except NoSuchElementException:
+        btn = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency) \
+            .until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector)))
+        btn.click()
+    return btn
 
 
 def main():
     print('Загрузка браузера...')
     url = 'https://www.binance.com/ru/'
-    option = get_options()
-    driver = get_driver(options=option)
+    options = get_options()
+    driver = get_driver(options=options)
     get_page(driver, url)
     load_cookies(driver)
     driver.refresh()
-    authenticated = check_auth(driver, 5)
+    authenticated = check_auth(driver)
     if not authenticated:
         do_auth(driver)
-    url = input('Вставьте ссылку на минт: ')
-    number_of_nfts = int(input('Введите количество NFT для покупки: '))
-    get_page(driver, url)
-    wait = WebDriverWait(driver=driver, timeout=5, poll_frequency=0.1) \
-        .until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.css-1mtehst')))
-    if EC.presence_of_element_located((By.CSS_SELECTOR, 'button.css-1mtehst')):
-        accept_terms = driver.find_element(By.CSS_SELECTOR, 'button.css-1mtehst')
-        accept_terms.click()
+    url = str(input('Вставьте ссылку на минт: ')).strip()
+    nft_amount = str(input('Введите количество NFT для покупки: ')).strip()
+    driver.get(url)
+
+    # Нажатие на кнопку соглашения с условиями бинанса
+    click_btn('button.css-1mtehst', driver=driver)
+
+    print('Ожидание дропа...')
+
+    # Нажатие на поле ввода количества NFT
+    nft_num_input = click_btn('button.css-1w6omp2', driver=driver, timeout=60*60*24)
+    if nft_amount != '1' or nft_amount != '':
+        nft_num_input.clear().send_keys(nft_amount)
+
+    click_btn('button.css-13irzvu', driver)  # Нажатие на кнопку покупки
+    click_btn('button.css-d8znws', driver=driver)  # Нажатие на кнопку подтверждения покупки
 
     input('Нажмите Enter для завершения работы программы')
 
