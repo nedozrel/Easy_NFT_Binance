@@ -1,19 +1,32 @@
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options as chrome_options
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import time
 import json
-from json.decoder import JSONDecodeError
+import requests
+import sys
+import traceback
+
+
+def log_uncaught_exceptions(ex_cls, ex, tb):
+    text = '{}: {}:\n'.format(ex_cls.__name__, ex)
+    text += ''.join(traceback.format_tb(tb))
+    print(text)
+    with open('data/error.txt', 'w', encoding='utf-8') as f:
+        f.write(text)
+    sys.exit()
+
+
+sys.excepthook = log_uncaught_exceptions
 
 
 def get_options():
     options = chrome_options()
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     try:
-        with open('proxy.txt', 'r') as file:
+        with open('data/proxy.txt', 'r') as file:
             proxy = file.read()
         if proxy:
             options.add_argument(f'--proxy-server={proxy}')
@@ -39,18 +52,18 @@ def get_page(driver, url):
 
 
 def save_cookies(driver):
-    with open('cookies.json', 'w') as file:
+    with open('data/cookies.json', 'w') as file:
         json.dump(driver.get_cookies(), file)
 
 
 def load_cookies(driver):
     try:
-        with open('cookies.json', 'r') as cookies_file:
+        with open('data/cookies.json', 'r') as cookies_file:
             cookies = json.load(cookies_file)
     except ValueError:
-        with open('cookies.json', 'w') as cookies_file:
+        with open('data/cookies.json', 'w') as cookies_file:
             cookies_file.write('{}')
-        with open('cookies.json', 'r') as cookies_file:
+        with open('data/cookies.json', 'r') as cookies_file:
             cookies = json.load(cookies_file)
     for cookie in cookies:
         driver.add_cookie(cookie)
@@ -75,13 +88,12 @@ def do_auth(driver):
 
 
 def click_btn(css_selector: str, driver, timeout=5, poll_frequency=0.00000000000000000000000000000001):
+    btn = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency) \
+        .until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector)))
     try:
-        btn = driver.find_element(By.CSS_SELECTOR, css_selector)
         btn.click()
-    except NoSuchElementException:
-        btn = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency) \
-            .until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector)))
-        btn.click()
+    except ElementClickInterceptedException:
+        btn = click_btn(css_selector, driver)
     return btn
 
 
@@ -93,7 +105,7 @@ def main():
     get_page(driver, url)
     load_cookies(driver)
     driver.refresh()
-    authenticated = check_auth(driver)
+    authenticated = check_auth(driver, timeout=10)
     if not authenticated:
         do_auth(driver)
     url = str(input('Вставьте ссылку на минт: ')).strip()
@@ -117,4 +129,13 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    with open('data/personal_key.txt', 'r') as f:
+        key = f.read()
+    if key:
+        r = requests.get(f'https://snkrs.na4u.ru/{key.strip()}:binance_nft_bot')
+        if r.text == 'yes':
+            main()
+        else:
+            input('Проверьте правильность введеного ключа!')
+    else:
+        input('Добавьте персональный ключ доступа в personal_key.txt в папке data и перезапустите программу.')
