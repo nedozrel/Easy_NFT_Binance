@@ -1,7 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as chrome_options
 from selenium.webdriver.common.by import By
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException
+from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, NoSuchElementException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import json
@@ -16,7 +16,7 @@ def log_uncaught_exceptions(ex_cls, ex, tb):
     print(text)
     with open('data/error.txt', 'w', encoding='utf-8') as f:
         f.write(text)
-    sys.exit()
+    input('Произошла фатальная ошибка, нажмите кнопку Enter или крестик для завершения работы.')
 
 
 sys.excepthook = log_uncaught_exceptions
@@ -87,6 +87,22 @@ def do_auth(driver):
     save_cookies(driver)
 
 
+def wait_purchase_btn(driver, timeout=60*60*24*3, poll_frequency=0.00000000000000000000000000000001):
+    WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency)\
+        .until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.css-13irzvu')))
+
+
+def send_num_of_nfts(driver, nft_amount):
+    if nft_amount != '1' or nft_amount != '' or nft_amount != '0':
+        try:
+            nft_num_input = driver.find_element(By.CSS_SELECTOR, 'button.css-1w6omp2')
+            nft_num_input.click().clear().send_keys(nft_amount)
+        except NoSuchElementException:
+            pass
+        except ElementClickInterceptedException:
+            pass
+
+
 def click_btn(css_selector: str, driver, timeout=5, poll_frequency=0.00000000000000000000000000000001):
     try:
         btn = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency) \
@@ -114,16 +130,10 @@ def main():
     nft_amount = str(input('Введите количество NFT для покупки: ')).strip()
     driver.get(url)
 
-    # Нажатие на кнопку соглашения с условиями бинанса
-    click_btn('button.css-1mtehst', driver=driver)
-
+    click_btn('button.css-1mtehst', driver=driver) # Нажатие на кнопку соглашения с условиями бинанса
     print('Ожидание дропа...')
-
-    # Нажатие на поле ввода количества NFT
-    nft_num_input = click_btn('button.css-1w6omp2', driver=driver, timeout=60*60*24)
-    if nft_amount != '1' or nft_amount != '':
-        nft_num_input.clear().send_keys(nft_amount)
-
+    wait_purchase_btn(driver)
+    send_num_of_nfts(driver, nft_amount)
     click_btn('button.css-13irzvu', driver)  # Нажатие на кнопку покупки
     click_btn('button.css-d8znws', driver=driver)  # Нажатие на кнопку подтверждения покупки
 
