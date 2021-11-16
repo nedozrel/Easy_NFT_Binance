@@ -88,12 +88,14 @@ def do_auth(driver):
 
 
 def click_btn(css_selector: str, driver, timeout=5, poll_frequency=0.00000000000000000000000000000001):
-    btn = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency) \
-        .until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector)))
     try:
+        btn = WebDriverWait(driver=driver, timeout=timeout, poll_frequency=poll_frequency) \
+            .until(EC.element_to_be_clickable((By.CSS_SELECTOR, css_selector)))
         btn.click()
     except ElementClickInterceptedException:
         btn = click_btn(css_selector, driver)
+    except TimeoutException:
+        return False
     return btn
 
 
