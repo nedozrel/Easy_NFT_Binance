@@ -4,6 +4,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, NoSuchElementException
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 import json
 import requests
 import sys
@@ -95,8 +96,10 @@ def wait_purchase_btn(driver, timeout=60*60*24*3, poll_frequency=0.0000000000000
 def send_num_of_nfts(driver, nft_amount):
     if nft_amount != '1' or nft_amount != '' or nft_amount != '0':
         try:
-            nft_num_input = driver.find_element(By.CSS_SELECTOR, 'button.css-1w6omp2')
-            nft_num_input.click().clear().send_keys(nft_amount)
+            nft_num_input = driver.find_element(By.CSS_SELECTOR, 'input.css-1w6omp2')
+            nft_num_input.click()
+            nft_num_input.send_keys(Keys.DELETE, Keys.BACK_SPACE)
+            nft_num_input.send_keys(nft_amount)
         except NoSuchElementException:
             pass
         except ElementClickInterceptedException:
