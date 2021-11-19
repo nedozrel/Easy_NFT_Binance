@@ -94,7 +94,7 @@ def wait_purchase_btn(driver, timeout=60*60*24*3, poll_frequency=0.0000000000000
 
 
 def send_num_of_nfts(driver, nft_amount):
-    if nft_amount != '1' or nft_amount != '' or nft_amount != '0':
+    if nft_amount != '1' and nft_amount != '' and nft_amount != '0':
         try:
             nft_num_input = driver.find_element(By.CSS_SELECTOR, 'input.css-1w6omp2')
             nft_num_input.click()
