@@ -18,6 +18,7 @@ def log_uncaught_exceptions(ex_cls, ex, tb):
     with open('data/error.txt', 'w', encoding='utf-8') as f:
         f.write(text)
     input('Произошла фатальная ошибка, нажмите кнопку Enter или крестик для завершения работы.')
+    sys.exit()
 
 
 sys.excepthook = log_uncaught_exceptions
@@ -26,6 +27,7 @@ sys.excepthook = log_uncaught_exceptions
 def get_options():
     options = chrome_options()
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_argument('--headless')
     try:
         with open('data/proxy.txt', 'r') as file:
             proxy = file.read()
@@ -79,13 +81,16 @@ def check_auth(driver, timeout=5):
         return False
 
 
-def do_auth(driver):
+def do_auth():
     print('Ожидание авторизации...')
+    options = chrome_options()
+    driver = get_driver(options)
     get_page(driver, 'https://accounts.binance.com/ru/login')
     WebDriverWait(driver=driver, timeout=600, poll_frequency=1) \
         .until(EC.any_of(EC.visibility_of_element_located((By.CSS_SELECTOR, '#__APP > div > header > div:nth-child(4) > div > svg > use')),
                          EC.visibility_of_element_located((By.CSS_SELECTOR, 'svg.css-6px2js'))))
     save_cookies(driver)
+    driver.quit()
 
 
 def wait_purchase_btn(driver, timeout=60*60*24*3, poll_frequency=0.00000000000000000000000000000001):
@@ -118,29 +123,33 @@ def click_btn(css_selector: str, driver, timeout=5, poll_frequency=0.00000000000
     return btn
 
 
-def main():
+def main(driver):
     print('Загрузка браузера...')
     url = 'https://www.binance.com/ru/'
-    options = get_options()
-    driver = get_driver(options=options)
     get_page(driver, url)
     load_cookies(driver)
     driver.refresh()
-    authenticated = check_auth(driver, timeout=10)
+    authenticated = check_auth(driver, timeout=5)
     if not authenticated:
-        do_auth(driver)
+        do_auth()
+        load_cookies(driver)
+        driver.refresh()
+
     url = str(input('Вставьте ссылку на минт: ')).strip()
     nft_amount = str(input('Введите количество NFT для покупки: ')).strip()
     driver.get(url)
 
-    click_btn('button.css-1mtehst', driver=driver) # Нажатие на кнопку соглашения с условиями бинанса
+    click_btn('button.css-1mtehst', driver=driver)  # Нажатие на кнопку соглашения с условиями бинанса
     print('Ожидание дропа...')
+    driver.save_screenshot(f'screenshots/drop_waiting.png')
     wait_purchase_btn(driver)
     send_num_of_nfts(driver, nft_amount)
     click_btn('button.css-13irzvu', driver)  # Нажатие на кнопку покупки
     click_btn('button.css-d8znws', driver=driver)  # Нажатие на кнопку подтверждения покупки
+    driver.save_screenshot(f'screenshots/drop_result.png')
 
     input('Нажмите Enter для завершения работы программы')
+    driver.save_screenshot(f'screenshots/before_quitting.png')
 
 
 if __name__ == '__main__':
@@ -149,7 +158,12 @@ if __name__ == '__main__':
     if key:
         r = requests.get(f'https://snkrs.na4u.ru/{key.strip()}:binance_nft_bot')
         if r.text == 'yes':
-            main()
+            main_options = get_options()
+            main_driver = get_driver(options=main_options)
+            try:
+                main(main_driver)
+            finally:
+                main_driver.quit()
         else:
             input('Проверьте правильность введеного ключа!')
     else:
