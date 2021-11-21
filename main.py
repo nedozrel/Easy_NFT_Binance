@@ -84,6 +84,7 @@ def check_auth(driver, timeout=5):
 def do_auth():
     print('Ожидание авторизации...')
     options = chrome_options()
+    options.add_experimental_option('excludeSwitches', ['enable-logging'])
     driver = get_driver(options)
     get_page(driver, 'https://accounts.binance.com/ru/login')
     WebDriverWait(driver=driver, timeout=600, poll_frequency=1) \
